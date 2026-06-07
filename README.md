@@ -76,6 +76,8 @@ jobs:
 
 The action writes a Markdown report to the job summary. It does not comment on issues, open PRs, or mutate repository state.
 
+See [GitHub Action usage](docs/github-action.md) for repo scans, search query scans, scheduled scans, required read-only permissions, and output details.
+
 ## Scoring Model
 
 Scores are transparent and signal-based:
