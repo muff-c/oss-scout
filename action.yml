@@ -1,5 +1,5 @@
 name: oss-scout
-description: Rank open GitHub issues by contribution viability and write a read-only report.
+description: Rank open GitHub issues and write a read-only report.
 inputs:
   repo:
     description: Repository in owner/name format. If omitted, query is used.
