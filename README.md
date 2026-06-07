@@ -1,8 +1,8 @@
 # oss-scout
 
-`oss-scout` is a read-only CLI and GitHub Action for ranking open GitHub issues by contribution viability.
+`oss-scout` is a read-only CLI and GitHub Action for finding open GitHub issues that look worth a closer look.
 
-It helps maintainers and contributors cut through issue triage noise by scoring freshness, contributor-friendly labels, discussion crowding, assignment status, stale risk, competing PRs, acceptance criteria, and visible bounty signals.
+It fetches public issue metadata and scores a few practical signals: recent activity, useful labels, comment count, assignees, stale issues, linked pull requests, acceptance criteria, and visible bounty wording.
 
 ## Install
 
@@ -38,7 +38,7 @@ Write a Markdown report to a file:
 oss-scout search "org:nodejs label:good-first-issue" --limit 15 --markdown > nodejs-issues.md
 ```
 
-Find lower-noise help-wanted issues in one repository:
+Find help-wanted issues in one repository:
 
 ```bash
 oss-scout repo cli/cli --limit 25 --markdown
@@ -76,11 +76,11 @@ jobs:
 
 The action writes a Markdown report to the job summary. It does not comment on issues, open PRs, or mutate repository state.
 
-See [GitHub Action usage](docs/github-action.md) for repo scans, search query scans, scheduled scans, required read-only permissions, and output details.
+See [GitHub Action usage](docs/github-action.md) for repo scans, search queries, scheduled scans, permissions, and output details.
 
 ## Scoring Model
 
-Scores are transparent and signal-based:
+Scores are simple weighted signals:
 
 | Signal | Effect |
 | --- | ---: |
@@ -107,7 +107,7 @@ The score is clamped between 0 and 100 and mapped to a low, medium, or high risk
 
 - Improve linked PR detection using issue timeline events.
 - Add configurable scoring weights.
-- Add maintained-project health summaries.
+- Add repository summary reports.
 - Add optional local report files.
 
 ## Development

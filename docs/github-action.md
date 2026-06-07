@@ -1,6 +1,6 @@
 # GitHub Action Usage
 
-`oss-scout` can run as a read-only GitHub Action and write a Markdown issue scouting report to the workflow job summary.
+`oss-scout` can run as a read-only GitHub Action and write a Markdown issue report to the workflow job summary.
 
 The action does not comment on issues, create pull requests, edit files, or store tokens.
 
@@ -86,7 +86,7 @@ jobs:
 
 ## Output
 
-The action writes the ranked Markdown report to the GitHub Actions job summary and sets one output:
+The action writes the Markdown report to the GitHub Actions job summary and sets one output:
 
 | Output | Description |
 | --- | --- |
