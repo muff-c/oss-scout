@@ -1,0 +1,16 @@
+name: oss-scout
+description: Rank open GitHub issues by contribution viability and write a read-only report.
+inputs:
+  repo:
+    description: Repository in owner/name format. If omitted, query is used.
+    required: false
+  query:
+    description: GitHub issue search query. Defaults to label:good-first-issue.
+    required: false
+  limit:
+    description: Maximum number of issues to inspect.
+    required: false
+    default: "30"
+runs:
+  using: node20
+  main: dist/action/index.js

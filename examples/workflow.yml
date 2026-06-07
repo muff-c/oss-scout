@@ -1,0 +1,17 @@
+name: oss-scout
+
+on:
+  workflow_dispatch:
+
+jobs:
+  scout:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: muff-c/oss-scout@v0.1.0
+        with:
+          repo: owner/name
+          limit: "30"
