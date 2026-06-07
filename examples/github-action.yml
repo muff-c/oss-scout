@@ -1,0 +1,29 @@
+name: oss-scout examples
+
+on:
+  workflow_dispatch:
+
+jobs:
+  repo-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: muff-c/oss-scout@v0.1.0
+        with:
+          repo: cli/cli
+          limit: "25"
+
+  search-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: muff-c/oss-scout@v0.1.0
+        with:
+          query: 'label:good-first-issue language:typescript'
+          limit: "20"
