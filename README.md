@@ -32,6 +32,18 @@ Run a GitHub issue search:
 oss-scout search "label:good-first-issue language:typescript" --limit 20 --json
 ```
 
+Write a Markdown report to a file:
+
+```bash
+oss-scout search "org:nodejs label:good-first-issue" --limit 15 --markdown > nodejs-issues.md
+```
+
+Find lower-noise help-wanted issues in one repository:
+
+```bash
+oss-scout repo cli/cli --limit 25 --markdown
+```
+
 Authentication uses the normal GitHub environment variables supported by Octokit:
 
 ```bash
