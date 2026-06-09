@@ -35,8 +35,11 @@ export type RankedIssue = {
   signals: ScoreSignal[];
 };
 
+export type ScoreWeights = Record<string, number>;
+
 export type ScoreOptions = {
   now?: Date;
+  weights?: Partial<ScoreWeights>;
 };
 
 export type FetchOptions = {

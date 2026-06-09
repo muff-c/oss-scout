@@ -67,4 +67,37 @@ describe("scoreIssue", () => {
     expect(result.signals).toContainEqual(expect.objectContaining({ key: "bounty-signal" }));
     expect(result.score).toBeGreaterThan(65);
   });
+
+  it("uses custom positive scoring weights", () => {
+    const result = scoreIssue(
+      {
+        ...baseIssue,
+        labels: ["help wanted"],
+        body: "Needs clearer setup docs."
+      },
+      {
+        now: new Date("2026-06-07T10:00:00.000Z"),
+        weights: { "welcoming-labels": 4 }
+      }
+    );
+
+    expect(result.score).toBe(66);
+    expect(result.signals).toContainEqual(expect.objectContaining({ key: "welcoming-labels", weight: 4 }));
+  });
+
+  it("uses custom negative scoring weights", () => {
+    const result = scoreIssue(
+      {
+        ...baseIssue,
+        linkedPullRequests: [{ url: "https://github.com/acme/widgets/pull/99", state: "open" }]
+      },
+      {
+        now: new Date("2026-06-07T10:00:00.000Z"),
+        weights: { "competing-pr": -35 }
+      }
+    );
+
+    expect(result.score).toBe(39);
+    expect(result.signals).toContainEqual(expect.objectContaining({ key: "competing-pr", weight: -35 }));
+  });
 });

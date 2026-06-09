@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import pc from "picocolors";
 import { rankIssues } from "../core/scoring.js";
-import type { FetchOptions, ScoutIssue } from "../core/types.js";
+import type { FetchOptions, ScoreWeights, ScoutIssue } from "../core/types.js";
 import { createOctokitFromEnv, fetchRepoIssues, searchIssues } from "../github/client.js";
 import { formatJsonReport, formatMarkdownReport } from "../report/formatters.js";
 
@@ -16,6 +16,7 @@ type CommandOptions = {
   limit?: string;
   json?: boolean;
   markdown?: boolean;
+  weights?: string;
 };
 
 export async function runCli(argv: string[], dependencies: Partial<Dependencies> = {}): Promise<void> {
@@ -42,6 +43,7 @@ export async function runCli(argv: string[], dependencies: Partial<Dependencies>
     .command("repo")
     .argument("<owner/name>", "GitHub repository to scan")
     .option("--limit <count>", "maximum issues to inspect", "30")
+    .option("--weights <json>", "JSON object of scoring weights by signal key")
     .option("--json", "print JSON")
     .option("--markdown", "print Markdown", true)
     .action(async (repository: string, options: CommandOptions) => {
@@ -53,6 +55,7 @@ export async function runCli(argv: string[], dependencies: Partial<Dependencies>
     .command("search")
     .argument("<query>", "GitHub issue search query")
     .option("--limit <count>", "maximum issues to inspect", "30")
+    .option("--weights <json>", "JSON object of scoring weights by signal key")
     .option("--json", "print JSON")
     .option("--markdown", "print Markdown", true)
     .action(async (query: string, options: CommandOptions) => {
@@ -80,12 +83,39 @@ function parseFetchOptions(options: CommandOptions): FetchOptions {
 }
 
 function renderReport(issues: ScoutIssue[], options: CommandOptions): string {
-  const ranked = rankIssues(issues);
+  const ranked = rankIssues(issues, { weights: parseScoreWeights(options.weights) });
   if (options.json) {
     return formatJsonReport(ranked);
   }
 
   return formatMarkdownReport(ranked, { title: "oss-scout report" });
+}
+
+function parseScoreWeights(rawWeights: string | undefined): Partial<ScoreWeights> | undefined {
+  if (!rawWeights) {
+    return undefined;
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(rawWeights);
+  } catch {
+    throw new Error("--weights must be a JSON object with numeric values");
+  }
+
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("--weights must be a JSON object with numeric values");
+  }
+
+  const weights: Partial<ScoreWeights> = {};
+  for (const [key, value] of Object.entries(parsed)) {
+    if (typeof value !== "number" || !Number.isFinite(value)) {
+      throw new Error("--weights must be a JSON object with numeric values");
+    }
+    weights[key] = value;
+  }
+
+  return weights;
 }
 
 export function formatCliError(error: unknown): string {

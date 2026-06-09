@@ -18,40 +18,40 @@ export function scoreIssue(issue: ScoutIssue, options: ScoreOptions = {}): Ranke
   const now = options.now ?? new Date();
   const labels = issue.labels.map((label) => label.toLowerCase());
   const body = issue.body.toLowerCase();
-  const signals: ScoreSignal[] = [{ key: "base", label: "Open issue baseline", weight: 50 }];
+  const signals: ScoreSignal[] = [scoreSignal("base", "Open issue baseline", 50, options)];
 
   if (labels.some((label) => welcomingLabels.has(label))) {
-    signals.push({ key: "welcoming-labels", label: "Welcoming contributor labels", weight: 18 });
+    signals.push(scoreSignal("welcoming-labels", "Welcoming contributor labels", 18, options));
   }
 
   if (labels.some((label) => bountyLabels.has(label)) || /\b(bounty|algora|opire|reward|\$\d+)\b/i.test(issue.body)) {
-    signals.push({ key: "bounty-signal", label: "Bounty or reward signal", weight: 10 });
+    signals.push(scoreSignal("bounty-signal", "Bounty or reward signal", 10, options));
   }
 
   const updatedAgeDays = ageInDays(issue.updatedAt, now);
   if (updatedAgeDays <= 14) {
-    signals.push({ key: "fresh", label: "Fresh activity", weight: 12 });
+    signals.push(scoreSignal("fresh", "Fresh activity", 12, options));
   } else if (updatedAgeDays >= 90) {
-    signals.push({ key: "stale", label: "Stale activity risk", weight: -24 });
+    signals.push(scoreSignal("stale", "Stale activity risk", -24, options));
   }
 
   if (hasAcceptanceCriteria(body)) {
-    signals.push({ key: "clear-acceptance", label: "Clear acceptance criteria", weight: 12 });
+    signals.push(scoreSignal("clear-acceptance", "Clear acceptance criteria", 12, options));
   }
 
   if (issue.comments === 0) {
-    signals.push({ key: "quiet-thread", label: "Low thread noise", weight: 6 });
+    signals.push(scoreSignal("quiet-thread", "Low thread noise", 6, options));
   } else if (issue.comments > 12) {
-    signals.push({ key: "crowded-thread", label: "Crowded discussion", weight: -14 });
+    signals.push(scoreSignal("crowded-thread", "Crowded discussion", -14, options));
   }
 
   if (issue.assignees.length > 0) {
-    signals.push({ key: "assigned", label: "Already assigned", weight: -14 });
+    signals.push(scoreSignal("assigned", "Already assigned", -14, options));
   }
 
   const openPullRequests = issue.linkedPullRequests.filter((pullRequest) => pullRequest.state === "open");
   if (openPullRequests.length > 0) {
-    signals.push({ key: "competing-pr", label: "Open competing pull request", weight: -18 });
+    signals.push(scoreSignal("competing-pr", "Open competing pull request", -18, options));
   }
 
   const score = clampScore(signals.reduce((total, signal) => total + signal.weight, 0));
@@ -72,6 +72,14 @@ export function rankIssues(issues: ScoutIssue[], options: ScoreOptions = {}): Ra
 
 function hasAcceptanceCriteria(body: string): boolean {
   return /acceptance criteria|expected behavior|done when|steps to reproduce|reproducible|requirements/.test(body);
+}
+
+function scoreSignal(key: string, label: string, defaultWeight: number, options: ScoreOptions): ScoreSignal {
+  return {
+    key,
+    label,
+    weight: options.weights?.[key] ?? defaultWeight
+  };
 }
 
 function ageInDays(isoDate: string, now: Date): number {
