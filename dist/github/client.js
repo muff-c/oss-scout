@@ -13,7 +13,8 @@ export async function fetchRepoIssues(client, repository, options) {
         sort: "updated",
         direction: "desc"
     });
-    return response.data.filter((issue) => !issue.pull_request).map((issue) => mapRepoIssue(issue, repository));
+    const issues = response.data.filter((issue) => !issue.pull_request).map((issue) => mapRepoIssue(issue, repository));
+    return addLinkedPullRequests(client, owner, repo, issues);
 }
 export async function searchIssues(client, query, options) {
     const normalizedQuery = normalizeSearchQuery(query);
@@ -23,7 +24,14 @@ export async function searchIssues(client, query, options) {
         sort: "updated",
         order: "desc"
     });
-    return response.data.items.map((issue) => mapSearchIssue(issue));
+    const issues = response.data.items.map((issue) => mapSearchIssue(issue));
+    return Promise.all(issues.map(async (issue) => {
+        const [owner, repo] = parseRepository(issue.repository);
+        return {
+            ...issue,
+            linkedPullRequests: await fetchLinkedPullRequests(client, owner, repo, issue.number)
+        };
+    }));
 }
 function parseRepository(repository) {
     const [owner, repo] = repository.split("/");
@@ -60,6 +68,44 @@ function mapRepoIssue(issue, repository) {
 }
 function mapSearchIssue(issue) {
     return mapRepoIssue(issue, repositoryFromApiUrl(issue.repository_url));
+}
+async function addLinkedPullRequests(client, owner, repo, issues) {
+    return Promise.all(issues.map(async (issue) => ({
+        ...issue,
+        linkedPullRequests: await fetchLinkedPullRequests(client, owner, repo, issue.number)
+    })));
+}
+async function fetchLinkedPullRequests(client, owner, repo, issueNumber) {
+    const response = await client.rest.issues.listEventsForTimeline({
+        owner,
+        repo,
+        issue_number: issueNumber,
+        per_page: 100
+    });
+    const linkedPullRequests = response.data
+        .map((event) => event.source?.issue)
+        .filter(isPullRequestReference)
+        .map((pullRequest) => ({
+        url: pullRequest.html_url,
+        state: normalizeState(pullRequest.state)
+    }));
+    return uniquePullRequests(linkedPullRequests);
+}
+function isPullRequestReference(issue) {
+    if (!issue) {
+        return false;
+    }
+    return Boolean(issue.pull_request) && isString(issue.html_url) && isString(issue.state);
+}
+function uniquePullRequests(pullRequests) {
+    const seen = new Set();
+    return pullRequests.filter((pullRequest) => {
+        if (seen.has(pullRequest.url)) {
+            return false;
+        }
+        seen.add(pullRequest.url);
+        return true;
+    });
 }
 function normalizeLabels(labels) {
     return labels

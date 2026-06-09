@@ -21,17 +21,35 @@ type RepoIssueResponse = {
 type SearchIssueResponse = RepoIssueResponse & {
     repository_url: string;
 };
+type TimelineIssueResponse = {
+    html_url?: string | null;
+    state?: string | null;
+    pull_request?: unknown;
+};
+type TimelineEventResponse = {
+    source?: {
+        issue?: TimelineIssueResponse | null;
+    } | null;
+};
 type RepoIssueClient = {
     rest: {
         issues: {
             listForRepo(params: Record<string, unknown>): Promise<{
                 data: RepoIssueResponse[];
             }>;
+            listEventsForTimeline(params: Record<string, unknown>): Promise<{
+                data: TimelineEventResponse[];
+            }>;
         };
     };
 };
 type SearchIssueClient = {
     rest: {
+        issues: {
+            listEventsForTimeline(params: Record<string, unknown>): Promise<{
+                data: TimelineEventResponse[];
+            }>;
+        };
         search: {
             issuesAndPullRequests(params: Record<string, unknown>): Promise<{
                 data: {
