@@ -1,5 +1,5 @@
 import { Octokit } from "@octokit/rest";
-import type { FetchOptions, IssueState, ScoutIssue } from "../core/types.js";
+import type { FetchOptions, IssueState, PullRequestReference, ScoutIssue } from "../core/types.js";
 
 type LabelLike = string | { name?: string | null };
 
@@ -21,16 +21,46 @@ type SearchIssueResponse = RepoIssueResponse & {
   repository_url: string;
 };
 
+type TimelineIssueResponse = {
+  html_url?: string | null;
+  state?: string | null;
+  pull_request?: unknown;
+};
+
+type TimelineEventResponse = {
+  source?: {
+    issue?: TimelineIssueResponse | null;
+  } | null;
+};
+
+type TimelinePullRequestResponse = {
+  html_url: string;
+  state: string;
+  pull_request: unknown;
+};
+
+type TimelineIssueClient = {
+  rest: {
+    issues: {
+      listEventsForTimeline(params: Record<string, unknown>): Promise<{ data: TimelineEventResponse[] }>;
+    };
+  };
+};
+
 type RepoIssueClient = {
   rest: {
     issues: {
       listForRepo(params: Record<string, unknown>): Promise<{ data: RepoIssueResponse[] }>;
+      listEventsForTimeline(params: Record<string, unknown>): Promise<{ data: TimelineEventResponse[] }>;
     };
   };
 };
 
 type SearchIssueClient = {
   rest: {
+    issues: {
+      listEventsForTimeline(params: Record<string, unknown>): Promise<{ data: TimelineEventResponse[] }>;
+    };
     search: {
       issuesAndPullRequests(params: Record<string, unknown>): Promise<{ data: { items: SearchIssueResponse[] } }>;
     };
@@ -53,7 +83,8 @@ export async function fetchRepoIssues(client: RepoIssueClient, repository: strin
     direction: "desc"
   });
 
-  return response.data.filter((issue) => !issue.pull_request).map((issue) => mapRepoIssue(issue, repository));
+  const issues = response.data.filter((issue) => !issue.pull_request).map((issue) => mapRepoIssue(issue, repository));
+  return addLinkedPullRequests(client, owner, repo, issues);
 }
 
 export async function searchIssues(client: SearchIssueClient, query: string, options: FetchOptions): Promise<ScoutIssue[]> {
@@ -65,7 +96,16 @@ export async function searchIssues(client: SearchIssueClient, query: string, opt
     order: "desc"
   });
 
-  return response.data.items.map((issue) => mapSearchIssue(issue));
+  const issues = response.data.items.map((issue) => mapSearchIssue(issue));
+  return Promise.all(
+    issues.map(async (issue) => {
+      const [owner, repo] = parseRepository(issue.repository);
+      return {
+        ...issue,
+        linkedPullRequests: await fetchLinkedPullRequests(client, owner, repo, issue.number)
+      };
+    })
+  );
 }
 
 function parseRepository(repository: string): [string, string] {
@@ -107,6 +147,63 @@ function mapRepoIssue(issue: RepoIssueResponse, repository: string): ScoutIssue 
 
 function mapSearchIssue(issue: SearchIssueResponse): ScoutIssue {
   return mapRepoIssue(issue, repositoryFromApiUrl(issue.repository_url));
+}
+
+async function addLinkedPullRequests(
+  client: RepoIssueClient,
+  owner: string,
+  repo: string,
+  issues: ScoutIssue[]
+): Promise<ScoutIssue[]> {
+  return Promise.all(
+    issues.map(async (issue) => ({
+      ...issue,
+      linkedPullRequests: await fetchLinkedPullRequests(client, owner, repo, issue.number)
+    }))
+  );
+}
+
+async function fetchLinkedPullRequests(
+  client: TimelineIssueClient,
+  owner: string,
+  repo: string,
+  issueNumber: number
+): Promise<PullRequestReference[]> {
+  const response = await client.rest.issues.listEventsForTimeline({
+    owner,
+    repo,
+    issue_number: issueNumber,
+    per_page: 100
+  });
+
+  const linkedPullRequests = response.data
+    .map((event) => event.source?.issue)
+    .filter(isPullRequestReference)
+    .map((pullRequest) => ({
+      url: pullRequest.html_url,
+      state: normalizeState(pullRequest.state)
+    }));
+
+  return uniquePullRequests(linkedPullRequests);
+}
+
+function isPullRequestReference(issue: TimelineIssueResponse | null | undefined): issue is TimelinePullRequestResponse {
+  if (!issue) {
+    return false;
+  }
+
+  return Boolean(issue.pull_request) && isString(issue.html_url) && isString(issue.state);
+}
+
+function uniquePullRequests(pullRequests: PullRequestReference[]): PullRequestReference[] {
+  const seen = new Set<string>();
+  return pullRequests.filter((pullRequest) => {
+    if (seen.has(pullRequest.url)) {
+      return false;
+    }
+    seen.add(pullRequest.url);
+    return true;
+  });
 }
 
 function normalizeLabels(labels: LabelLike[]): string[] {
