@@ -25,6 +25,7 @@ export async function runCli(argv, dependencies = {}) {
         .command("repo")
         .argument("<owner/name>", "GitHub repository to scan")
         .option("--limit <count>", "maximum issues to inspect", "30")
+        .option("--weights <json>", "JSON object of scoring weights by signal key")
         .option("--json", "print JSON")
         .option("--markdown", "print Markdown", true)
         .action(async (repository, options) => {
@@ -35,6 +36,7 @@ export async function runCli(argv, dependencies = {}) {
         .command("search")
         .argument("<query>", "GitHub issue search query")
         .option("--limit <count>", "maximum issues to inspect", "30")
+        .option("--weights <json>", "JSON object of scoring weights by signal key")
         .option("--json", "print JSON")
         .option("--markdown", "print Markdown", true)
         .action(async (query, options) => {
@@ -59,11 +61,34 @@ function parseFetchOptions(options) {
     return { limit };
 }
 function renderReport(issues, options) {
-    const ranked = rankIssues(issues);
+    const ranked = rankIssues(issues, { weights: parseScoreWeights(options.weights) });
     if (options.json) {
         return formatJsonReport(ranked);
     }
     return formatMarkdownReport(ranked, { title: "oss-scout report" });
+}
+function parseScoreWeights(rawWeights) {
+    if (!rawWeights) {
+        return undefined;
+    }
+    let parsed;
+    try {
+        parsed = JSON.parse(rawWeights);
+    }
+    catch {
+        throw new Error("--weights must be a JSON object with numeric values");
+    }
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        throw new Error("--weights must be a JSON object with numeric values");
+    }
+    const weights = {};
+    for (const [key, value] of Object.entries(parsed)) {
+        if (typeof value !== "number" || !Number.isFinite(value)) {
+            throw new Error("--weights must be a JSON object with numeric values");
+        }
+        weights[key] = value;
+    }
+    return weights;
 }
 export function formatCliError(error) {
     const message = error instanceof Error ? error.message : String(error);

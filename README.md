@@ -44,6 +44,12 @@ Find help-wanted issues in one repository:
 oss-scout repo cli/cli --limit 25 --markdown
 ```
 
+Tune scoring weights for a scan:
+
+```bash
+oss-scout repo owner/name --weights '{"welcoming-labels":10,"stale":-40}' --markdown
+```
+
 Authentication uses the normal GitHub environment variables supported by Octokit:
 
 ```bash
@@ -80,21 +86,22 @@ See [GitHub Action usage](docs/github-action.md) for repo scans, search queries,
 
 ## Scoring Model
 
-Scores are simple weighted signals:
+Scores are simple weighted signals. Use `--weights` with a JSON object to override any default by key:
 
-| Signal | Effect |
-| --- | ---: |
-| Good-first/help-wanted labels | +18 |
-| Fresh activity within 14 days | +12 |
-| Clear acceptance criteria or reproduction detail | +12 |
-| Bounty/reward text or labels | +10 |
-| Low thread noise | +6 |
-| Stale activity over 90 days | -24 |
-| Open competing PR | -18 |
-| Crowded discussion | -14 |
-| Already assigned | -14 |
+| Key | Signal | Default |
+| --- | --- | ---: |
+| `welcoming-labels` | Good-first/help-wanted labels | +18 |
+| `fresh` | Fresh activity within 14 days | +12 |
+| `clear-acceptance` | Clear acceptance criteria or reproduction detail | +12 |
+| `bounty-signal` | Bounty/reward text or labels | +10 |
+| `quiet-thread` | Low thread noise | +6 |
+| `stale` | Stale activity over 90 days | -24 |
+| `competing-pr` | Open competing PR | -18 |
+| `crowded-thread` | Crowded discussion | -14 |
+| `assigned` | Already assigned | -14 |
 
 The score is clamped between 0 and 100 and mapped to a low, medium, or high risk level.
+When no custom weights are passed, the defaults above are used.
 
 ## Limitations
 
@@ -106,7 +113,6 @@ The score is clamped between 0 and 100 and mapped to a low, medium, or high risk
 ## Roadmap
 
 - Improve linked PR detection using issue timeline events.
-- Add configurable scoring weights.
 - Add repository summary reports.
 - Add optional local report files.
 
